@@ -26,7 +26,7 @@ def power_iteration(M: np.array, eps:float=1e-8) -> float:
         v = v_new
         ev = ev_new
 
-    # Retrun the largest eigenvalue
+    # Return the largest eigenvalue
     return ev_new
 
 
@@ -34,7 +34,7 @@ def task1(signal):
     """ Signal Denoising
 
         Requirements for the plots:
-            -ax[0,0] - Results for low noise and K=15
+            -ax[0,0] - Results for low noise and K  =15
             -ax[0,1] - Results for high noise and K=15
             -ax[1,0] - Results for low noise and K=100
             -ax[1,1] - Results for low noise and K=5
@@ -54,6 +54,28 @@ def task1(signal):
 
     """ Start of your code
     """
+
+    # Create dictionary matrix for DCT (discrete cosine transform)
+    n = signal.shape[0]
+    noisy_signal = signal * np.random.normal(0, 0.01, size=n)
+    d = 5
+
+    alpha_j_1 = 1 / np.sqrt(n)  # alpha for 1st basic function of DCT (i.e. first column in dictionary matrix A)
+    alpha_j_n = np.sqrt(2 / n)  # alpha for all other basic functions of DCT (i.e. every column except the first one in dictionary matrix A)
+
+    A = np.empty((n, d))
+
+    for j in range(1, d + 1):
+        cos_part_1 = np.pi / n * (j - 1)
+        for i in range(1, n + 1):
+            cos_term = np.cos(cos_part_1 * (i - 1/2))
+            if j == 1:
+                A[i - 1, j - 1] = alpha_j_1 * cos_term
+            else:
+                A[i - 1, j - 1] = alpha_j_n * cos_term
+
+    M = np.matmul(A.T, A)
+    lambda_max = power_iteration(M)  # largest computed eigenvalue based on power-iteration algorithm
 
     """ End of your code
     """
