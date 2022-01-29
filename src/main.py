@@ -60,27 +60,55 @@ def task1(signal):
     noisy_signal = signal * np.random.normal(0, 0.01, size=n)
     d = 5
 
-    alpha_j_1 = 1 / np.sqrt(n)  # alpha for 1st basic function of DCT (i.e. first column in dictionary matrix A)
-    alpha_j_n = np.sqrt(2 / n)  # alpha for all other basic functions of DCT (i.e. every column except the first one in dictionary matrix A)
-
-    A = np.empty((n, d))
-
-    for j in range(1, d + 1):
-        cos_part_1 = np.pi / n * (j - 1)
-        for i in range(1, n + 1):
-            cos_term = np.cos(cos_part_1 * (i - 1/2))
-            if j == 1:
-                A[i - 1, j - 1] = alpha_j_1 * cos_term
-            else:
-                A[i - 1, j - 1] = alpha_j_n * cos_term
-
-    M = np.matmul(A.T, A)
-    lambda_max = power_iteration(M)  # largest computed eigenvalue based on power-iteration algorithm
+    A, lambda_max = __calculate_lipschitz_constant(d, n)
+    __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=100)
 
     """ End of your code
     """
 
     return fig
+
+
+def __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size, k):
+    x_k = np.zeros(d)  # Choose arbitrary initial value (i.e. x_0) for vector x within convex unit simplex
+    x_k[0] = 1  # TODO: choose better arbitray starting point later
+
+    step_size = 2 / lambda_max - eps_step_size  # Choose step size t in (0, 2 / lipschitz_constant) minus an epsilon offset (so that convergence to global minimum is guaranteed when using numerical
+    # operations)
+
+    for i in range(k):
+        gradient_obj_function = np.matmul(A.T, A * x_k - noisy_signal)  # Calculated result by pen & paper: nabla_f(x) = A.T * (A * x - b)
+        x_k_1 = x_k - step_size * gradient_obj_function  # x_k+1 = x_k - t * nabla_f(x)
+        # TODO: projection
+        # 1. follow negative gradient direction (normal vector of hyperplane)
+        # 2. project negative coordinates into positive half-space
+        # 3. divide each vector coordinate by their total sum
+
+
+def __calculate_lipschitz_constant(d, n):
+    alpha_j_1 = __calculate_alpha_j_1(n)
+    alpha_j_n = np.sqrt(2 / n)  # alpha for all other basic functions of DCT (i.e. every column except the first one in dictionary matrix A)
+
+    A = np.empty((n, d))  # dictionary matrix for DCT
+
+    for j in range(1, d + 1):
+        M = np.matmul(A.T, A)
+        cos_part_1 = np.pi / n * (j - 1)
+        for i in range(1, n + 1):
+            cos_term = np.cos(cos_part_1 * (i - 1 / 2))
+            if j == 1:
+                A[i - 1, j - 1] = alpha_j_1 * cos_term
+            else:
+                A[i - 1, j - 1] = alpha_j_n * cos_term
+
+    lambda_max = power_iteration(M)  # largest computed eigenvalue based on power-iteration algorithm = Lipschitz constant
+
+    return A, lambda_max
+
+
+def __calculate_alpha_j_1(n):
+    alpha_j_1 = 1 / np.sqrt(n)  # alpha for 1st basic function of DCT (i.e. first column in dictionary matrix A)
+    return alpha_j_1
 
 
 def task2(img):
