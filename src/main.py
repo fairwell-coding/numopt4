@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import scipy
 import scipy.optimize
 from matplotlib.backends.backend_pdf import PdfPages
+from numpy.linalg import inv
 
 
 def power_iteration(M: np.array, eps:float=1e-8) -> float:
@@ -76,13 +77,75 @@ def __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size, k
     step_size = 2 / lambda_max - eps_step_size  # Choose step size t in (0, 2 / lipschitz_constant) minus an epsilon offset (so that convergence to global minimum is guaranteed when using numerical
     # operations)
 
+    direction_vector_matrix, p = __define_hyperplane(d)
+
     for i in range(k):
-        gradient_obj_function = np.matmul(A.T, A * x_k - noisy_signal)  # Calculated result by pen & paper: nabla_f(x) = A.T * (A * x - b)
-        x_k_1 = x_k - step_size * gradient_obj_function  # x_k+1 = x_k - t * nabla_f(x)
-        # TODO: projection
-        # 1. follow negative gradient direction (normal vector of hyperplane)
-        # 2. project negative coordinates into positive half-space
-        # 3. divide each vector coordinate by their total sum
+        z = __steepest_gradient_descent(A, noisy_signal, step_size, x_k)
+        projection_on_hyperplane = __projection_on_unconstrained_hyperplane(d, direction_vector_matrix, p, z)
+        x_k = __projection_from_hyperplane_to_unit_simplex(d, projection_on_hyperplane)
+
+
+def __projection_on_unconstrained_hyperplane(d, direction_vector_matrix, p, z):
+    # Define normal vector of hyperplane (not normalized since this is irrelevant to calculate intersection)
+    normal_vector = np.full(d, 1)
+
+    # Calculate distance of intersection of hyperplane with normal vector
+    D = np.concatenate((direction_vector_matrix, -1 * normal_vector.reshape((normal_vector.shape[0], 1))), axis=1)  # matrix D combines direction vector matrix and adds negative normal vector as
+    # last column
+    scaling_vector = np.matmul(inv(D), z - p)
+    projection_on_hyperplane = z + scaling_vector[-1] * normal_vector
+
+    return projection_on_hyperplane
+
+
+def __steepest_gradient_descent(A, noisy_signal, step_size, x_k):
+    gradient_obj_function = np.matmul(A.T, np.matmul(A, x_k) - noisy_signal)  # Calculated result by pen & paper: nabla_f(x) = A.T * (A * x - b)
+    z = x_k - step_size * gradient_obj_function  # z = steepest_descent = x_k - t * nabla_f(x)
+
+    return z
+
+
+def __define_hyperplane(d):
+    """ Define hyperplane by using a point p on the hyperplane and d-1 direction vectors
+
+    :param d:
+    :return:
+    """
+
+    p = np.zeros(d)
+    p[0] = 1
+
+    direction_vector_matrix = np.zeros((d, d - 1))  # d-1 direction vectors span the hyperplane (subspace of dim=d-1); each vector exists in vector space of dim=d
+    for j in range(d - 1):
+        direction_vector_matrix[0, j] = 1
+        direction_vector_matrix[j + 1, j] = -1
+
+    return direction_vector_matrix, p
+
+
+def __projection_from_hyperplane_to_unit_simplex(d, projection_on_hyperplane):
+    """ Projection from d-1 dim hyperplane (i.e. some coordinates may still be negative and thus violate unit simplex constraint) -> d-1 dim unit simplex space
+
+    :param d: dimension of enclosing vector space
+    :param projection_on_hyperplane: projected solution on hyperplane
+    :return: projected x* (equivalent to x_k_1 notation) for current iteration
+    """
+
+    binary_projection_mask = np.full(d, 1)
+
+    while np.sum(np.array(projection_on_hyperplane) < 0) > 0:  # negative values exist
+        for j in range(d):
+            if projection_on_hyperplane[j] > 0:
+                continue
+
+            binary_projection_mask[j] = 0
+            compensation_factor = - projection_on_hyperplane[j]
+            projection_on_hyperplane += compensation_factor / np.sum(binary_projection_mask) * binary_projection_mask
+            projection_on_hyperplane[j] = 0
+
+    x_k_1 = projection_on_hyperplane
+
+    return x_k_1
 
 
 def __calculate_lipschitz_constant(d, n):
