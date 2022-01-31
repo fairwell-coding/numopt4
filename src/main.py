@@ -62,7 +62,7 @@ def task1(signal):
     d = 5
 
     A, lambda_max = __calculate_lipschitz_constant(d, n)
-    __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=100)
+    x_k_1 = __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=100)
 
     """ End of your code
     """
@@ -83,6 +83,8 @@ def __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size, k
         z = __steepest_gradient_descent(A, noisy_signal, step_size, x_k)
         projection_on_hyperplane = __projection_on_unconstrained_hyperplane(d, direction_vector_matrix, p, z)
         x_k = __projection_from_hyperplane_to_unit_simplex(d, projection_on_hyperplane)
+
+    return x_k
 
 
 def __projection_on_unconstrained_hyperplane(d, direction_vector_matrix, p, z):
