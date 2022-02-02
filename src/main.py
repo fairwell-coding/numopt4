@@ -58,11 +58,11 @@ def task1(signal):
 
     # Create dictionary matrix for DCT (discrete cosine transform)
     n = signal.shape[0]
-    noisy_signal = signal * np.random.normal(0, 0.01, size=n)
-    d = 5
 
-    A, lambda_max = __calculate_lipschitz_constant(d, n)
-    x_k_1 = __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=100)
+    history_a = __perform_experiment_a(n, signal)
+    history_b = __perform_experiment_b(n, signal)
+    history_c = __perform_experiment_c(n, signal)
+    history_d = __perform_experiment_d(n, signal)
 
     """ End of your code
     """
@@ -70,9 +70,52 @@ def task1(signal):
     return fig
 
 
+def __perform_experiment_a(n, signal):
+    deviation = 0.01
+    d = 15
+    k = 100
+
+    return __run_both_algorithms(d, deviation, k, n, signal)
+
+
+def __perform_experiment_b(n, signal):
+    deviation = 0.03
+    d = 15
+    k = 100
+
+    return __run_both_algorithms(d, deviation, k, n, signal)
+
+
+def __perform_experiment_c(n, signal):
+    deviation = 0.01
+    d = 100
+    k = 100
+
+    return __run_both_algorithms(d, deviation, k, n, signal)
+
+
+def __perform_experiment_d(n, signal):
+    deviation = 0.01
+    d = 5
+    k = 100
+
+    return __run_both_algorithms(d, deviation, k, n, signal)
+
+
+def __run_both_algorithms(d, deviation, k, n, signal):
+    noisy_signal = signal * np.random.normal(0, deviation, size=n)
+    A, lambda_max = __calculate_lipschitz_constant(d, n)
+    training_history = __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k)
+    # x_k_1 = training_history[-1]
+
+    return training_history
+
+
 def __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size, k):
     x_k = np.zeros(d)  # Choose arbitrary initial value (i.e. x_0) for vector x within convex unit simplex
-    x_k[0] = 1  # TODO: choose better arbitray starting point later
+    x_k[0] = 1
+
+    x_k_history = []  # history of projected x_k values over algorithm iterations (used to verify convergence)
 
     step_size = 2 / lambda_max - eps_step_size  # Choose step size t in (0, 2 / lipschitz_constant) minus an epsilon offset (so that convergence to global minimum is guaranteed when using numerical
     # operations)
@@ -83,8 +126,9 @@ def __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size, k
         z = __steepest_gradient_descent(A, noisy_signal, step_size, x_k)
         projection_on_hyperplane = __projection_on_unconstrained_hyperplane(d, direction_vector_matrix, p, z)
         x_k = __projection_from_hyperplane_to_unit_simplex(d, projection_on_hyperplane)
+        x_k_history.append((x_k, np.sum(x_k)))
 
-    return x_k
+    return x_k_history
 
 
 def __projection_on_unconstrained_hyperplane(d, direction_vector_matrix, p, z):
@@ -142,7 +186,7 @@ def __projection_from_hyperplane_to_unit_simplex(d, projection_on_hyperplane):
 
             binary_projection_mask[j] = 0
             compensation_factor = - projection_on_hyperplane[j]
-            projection_on_hyperplane += compensation_factor / np.sum(binary_projection_mask) * binary_projection_mask
+            projection_on_hyperplane -= compensation_factor / np.sum(binary_projection_mask) * binary_projection_mask
             projection_on_hyperplane[j] = 0
 
     x_k_1 = projection_on_hyperplane
