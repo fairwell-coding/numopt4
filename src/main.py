@@ -4,6 +4,10 @@ import scipy
 import scipy.optimize
 from matplotlib.backends.backend_pdf import PdfPages
 from numpy.linalg import inv
+from numpy.random import set_state, SeedSequence, RandomState, MT19937
+
+
+RANDOM_STATE = 42
 
 
 def power_iteration(M: np.array, eps:float=1e-8) -> float:
@@ -59,10 +63,29 @@ def task1(signal):
     # Create dictionary matrix for DCT (discrete cosine transform)
     n = signal.shape[0]
 
-    history_a = __perform_experiment_a(n, signal)
-    history_b = __perform_experiment_b(n, signal)
-    history_c = __perform_experiment_c(n, signal)
-    history_d = __perform_experiment_d(n, signal)
+    proj, selfmade, fw = __perform_experiment_a(n, signal)
+    diff_1 = fw[-1][0] - proj[-1][0]
+    max_1 = diff_1[np.argmax(abs(diff_1))]
+    diff_2 = fw[-1][0] - selfmade[-1][0]
+    max_2 = diff_2[np.argmax(abs(diff_2))]
+    diff_3 = selfmade[-1][0] - proj[-1][0]
+    max_3 = diff_3[np.argmax(abs(diff_3))]
+
+    # prj_grad_hist_b, selfmade_prj_hist_b, fw_hist_b = __perform_experiment_b(n, signal)
+    # x_k_diff_b = fw_hist_b[-1][0] - prj_grad_hist_b[-1][0]
+    # max_x_k_element_b = x_k_diff_b[np.argmax(abs(x_k_diff_b))]
+    #
+    # prj_grad_hist_c, selfmade_prj_hist_c, fw_hist_c = __perform_experiment_c(n, signal)
+    # x_k_diff_c = fw_hist_c[-1][0] - prj_grad_hist_c[-1][0]
+    # max_x_k_element_c = x_k_diff_c[np.argmax(abs(x_k_diff_c))]
+    #
+    # prj_grad_hist_d, selfmade_prj_hist_d, fw_hist_d = __perform_experiment_d(n, signal)
+    # x_k_diff_d = fw_hist_d[-1][0] - prj_grad_hist_d[-1][0]
+    # max_x_k_element_d = x_k_diff_d[np.argmax(abs(x_k_diff_d))]
+
+    # history_b = __perform_experiment_b(n, signal)
+    # history_c = __perform_experiment_c(n, signal)
+    # history_d = __perform_experiment_d(n, signal)
 
     """ End of your code
     """
@@ -73,7 +96,7 @@ def task1(signal):
 def __perform_experiment_a(n, signal):
     deviation = 0.01
     d = 15
-    k = 100
+    k = 1000
 
     return __run_both_algorithms(d, deviation, k, n, signal)
 
@@ -81,7 +104,7 @@ def __perform_experiment_a(n, signal):
 def __perform_experiment_b(n, signal):
     deviation = 0.03
     d = 15
-    k = 100
+    k = 300
 
     return __run_both_algorithms(d, deviation, k, n, signal)
 
@@ -89,7 +112,7 @@ def __perform_experiment_b(n, signal):
 def __perform_experiment_c(n, signal):
     deviation = 0.01
     d = 100
-    k = 100
+    k = 300
 
     return __run_both_algorithms(d, deviation, k, n, signal)
 
@@ -97,24 +120,95 @@ def __perform_experiment_c(n, signal):
 def __perform_experiment_d(n, signal):
     deviation = 0.01
     d = 5
-    k = 100
+    k = 25000
 
     return __run_both_algorithms(d, deviation, k, n, signal)
 
 
 def __run_both_algorithms(d, deviation, k, n, signal):
+    np.random.seed(RANDOM_STATE)
     noisy_signal = signal * np.random.normal(0, deviation, size=n)
     A, lambda_max = __calculate_lipschitz_constant(d, n)
-    training_history = __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k)
-    # x_k_1 = training_history[-1]
 
-    return training_history
-
-
-def __projected_gradient_method(A, d, lambda_max, noisy_signal, eps_step_size, k):
     x_k = np.zeros(d)  # Choose arbitrary initial value (i.e. x_0) for vector x within convex unit simplex
     x_k[0] = 1
 
+    prj_grad_hist = __projected_gradient_method(x_k, A, lambda_max, noisy_signal, eps_step_size=1E-4, k=k)
+    selfmade_prj_hist = __selfmade_projection_method(x_k, A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k)
+    fw_hist = __frank_wolfe_method(A, d, k, noisy_signal, x_k)
+
+    return prj_grad_hist, selfmade_prj_hist, fw_hist
+
+
+def __project_on_unit_simplex(z):
+    z_hat = -np.sort(-z)
+
+    rho = __calculate_rho(z_hat)
+    q = __calculate_q(rho, z_hat)
+    x_k = __calculate_x_k(q, z)
+
+    return x_k
+
+
+def __calculate_x_k(q, z):
+    x_k = np.empty(z.shape[0])
+    for i in range(z.shape[0]):
+        x_k[i] = np.maximum(z[i] + q, 0)
+    return x_k
+
+
+def __calculate_q(rho, z_hat):
+    sum_rho_largest_coordinates = 0
+    for i in range(rho):
+        sum_rho_largest_coordinates += z_hat[i]
+    q = 1 / rho * (1 - sum_rho_largest_coordinates)
+    return q
+
+
+def __calculate_rho(z_hat):
+    rho = 0
+
+    for i in range(z_hat.shape[0]):
+        sum_of_bigger_coordinates = 0
+        for j in range(i):
+            sum_of_bigger_coordinates += z_hat[j]
+        r = z_hat[i] + 1 / (i + 1) * (1 - sum_of_bigger_coordinates)
+        if r > 0:
+            rho += 1
+
+    return rho
+
+
+def __projected_gradient_method(x_k, A, lambda_max, noisy_signal, eps_step_size, k):
+    x_k_history = []  # history of projected x_k values over algorithm iterations (used to verify convergence)
+
+    step_size = 2 / lambda_max - eps_step_size  # Choose step size t in (0, 2 / lipschitz_constant) minus an epsilon offset (so that convergence to global minimum is guaranteed when using numerical
+    # operations)
+
+    for i in range(k):
+        z = __steepest_gradient_descent(A, noisy_signal, step_size, x_k)
+        x_k = __project_on_unit_simplex(z)
+        x_k_history.append((x_k, np.sum(x_k)))
+
+    return x_k_history
+
+
+def __frank_wolfe_method(A, d, k, noisy_signal, x_k):
+    x_k_history = []
+
+    for i in range(k):
+        gradient_obj_function = __calculate_gradient(A, noisy_signal, x_k)
+        y_k = np.zeros(d)
+        y_k[np.argmin(gradient_obj_function)] = 1  # e_i = p(x) = y_k = extremal point, element of lineared version of the cost function over the convex set
+
+        tau_k = 2 / (k + 1)  # tau_k = step size t_k
+        x_k = (1 - tau_k) * x_k + tau_k * y_k
+        x_k_history.append((x_k, np.sum(x_k)))
+
+    return x_k_history
+
+
+def __selfmade_projection_method(x_k, A, d, lambda_max, noisy_signal, eps_step_size, k):
     x_k_history = []  # history of projected x_k values over algorithm iterations (used to verify convergence)
 
     step_size = 2 / lambda_max - eps_step_size  # Choose step size t in (0, 2 / lipschitz_constant) minus an epsilon offset (so that convergence to global minimum is guaranteed when using numerical
@@ -145,10 +239,22 @@ def __projection_on_unconstrained_hyperplane(d, direction_vector_matrix, p, z):
 
 
 def __steepest_gradient_descent(A, noisy_signal, step_size, x_k):
-    gradient_obj_function = np.matmul(A.T, np.matmul(A, x_k) - noisy_signal)  # Calculated result by pen & paper: nabla_f(x) = A.T * (A * x - b)
+    gradient_obj_function = __calculate_gradient(A, noisy_signal, x_k)
     z = x_k - step_size * gradient_obj_function  # z = steepest_descent = x_k - t * nabla_f(x)
 
     return z
+
+
+def __calculate_gradient(A, noisy_signal, x_k):
+    """ Calculated result by pen & paper: nabla_f(x) = A.T * (A * x - b)
+
+    :param A: constructed dictionary matrix
+    :param noisy_signal: Gaussian superimposed noisy signal vector b
+    :param x_k: current iteration of solution vector x_k
+    :return: gradient of current gradient descent (steepest descent) = nabla_f(x)
+    """
+
+    return np.matmul(A.T, np.matmul(A, x_k) - noisy_signal)
 
 
 def __define_hyperplane(d):
