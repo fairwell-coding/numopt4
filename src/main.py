@@ -70,6 +70,9 @@ def task1(signal):
     max_2 = diff_2[np.argmax(abs(diff_2))]
     diff_3 = selfmade[-1][0] - proj[-1][0]
     max_3 = diff_3[np.argmax(abs(diff_3))]
+    x_k_proj = proj[-1][0]
+    x_k_selfmade = selfmade[-1][0]
+    x_k_fw = fw[-1][0]
 
     # prj_grad_hist_b, selfmade_prj_hist_b, fw_hist_b = __perform_experiment_b(n, signal)
     # x_k_diff_b = fw_hist_b[-1][0] - prj_grad_hist_b[-1][0]
@@ -96,46 +99,50 @@ def task1(signal):
 def __perform_experiment_a(n, signal):
     deviation = 0.01
     d = 15
-    k = 1000
+    k = {'prj': 500, 'selfmade': 500, 'fw': 500}
 
-    return __run_both_algorithms(d, deviation, k, n, signal)
+    return __run_all_methods(d, deviation, k, n, signal)
 
 
 def __perform_experiment_b(n, signal):
     deviation = 0.03
     d = 15
-    k = 300
+    k = {'prj': 300, 'selfmade': 300, 'fw': 300}
 
-    return __run_both_algorithms(d, deviation, k, n, signal)
+    return __run_all_methods(d, deviation, k, n, signal)
 
 
 def __perform_experiment_c(n, signal):
     deviation = 0.01
     d = 100
-    k = 300
+    k = {'prj': 300, 'selfmade': 300, 'fw': 300}
 
-    return __run_both_algorithms(d, deviation, k, n, signal)
+    return __run_all_methods(d, deviation, k, n, signal)
 
 
 def __perform_experiment_d(n, signal):
     deviation = 0.01
     d = 5
-    k = 25000
+    k = {'prj': 300, 'selfmade': 300, 'fw': 300}
 
-    return __run_both_algorithms(d, deviation, k, n, signal)
+    return __run_all_methods(d, deviation, k, n, signal)
 
 
-def __run_both_algorithms(d, deviation, k, n, signal):
+def __run_all_methods(d, deviation, k, n, signal):
     np.random.seed(RANDOM_STATE)
     noisy_signal = signal * np.random.normal(0, deviation, size=n)
     A, lambda_max = __calculate_lipschitz_constant(d, n)
 
-    x_k = np.zeros(d)  # Choose arbitrary initial value (i.e. x_0) for vector x within convex unit simplex
+    # Choose arbitrary initial value (i.e. x_0) for vector x within convex unit simplex
+    x_k = np.zeros(d)
     x_k[0] = 1
 
-    prj_grad_hist = __projected_gradient_method(x_k, A, lambda_max, noisy_signal, eps_step_size=1E-4, k=k)
-    selfmade_prj_hist = __selfmade_projection_method(x_k, A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k)
-    fw_hist = __frank_wolfe_method(A, d, k, noisy_signal, x_k)
+    # Use verification example posted on forum by Christian Kopf
+    # x_k = np.array([-0.4, 0.3, .5, 1.2])
+
+    prj_grad_hist = __projected_gradient_method(x_k, A, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['prj'])
+    selfmade_prj_hist = __selfmade_projection_method(x_k, A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['selfmade'])
+    fw_hist = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k)
 
     return prj_grad_hist, selfmade_prj_hist, fw_hist
 
