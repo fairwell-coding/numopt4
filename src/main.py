@@ -60,35 +60,10 @@ def task1(signal):
     """ Start of your code
     """
 
-    # Create dictionary matrix for DCT (discrete cosine transform)
-    n = signal.shape[0]
-
-    proj, selfmade, fw = __perform_experiment_a(n, signal)
-    diff_1 = fw[-1][0] - proj[-1][0]
-    max_1 = diff_1[np.argmax(abs(diff_1))]
-    diff_2 = fw[-1][0] - selfmade[-1][0]
-    max_2 = diff_2[np.argmax(abs(diff_2))]
-    diff_3 = selfmade[-1][0] - proj[-1][0]
-    max_3 = diff_3[np.argmax(abs(diff_3))]
-    x_k_proj = proj[-1][0]
-    x_k_selfmade = selfmade[-1][0]
-    x_k_fw = fw[-1][0]
-
-    # prj_grad_hist_b, selfmade_prj_hist_b, fw_hist_b = __perform_experiment_b(n, signal)
-    # x_k_diff_b = fw_hist_b[-1][0] - prj_grad_hist_b[-1][0]
-    # max_x_k_element_b = x_k_diff_b[np.argmax(abs(x_k_diff_b))]
-    #
-    # prj_grad_hist_c, selfmade_prj_hist_c, fw_hist_c = __perform_experiment_c(n, signal)
-    # x_k_diff_c = fw_hist_c[-1][0] - prj_grad_hist_c[-1][0]
-    # max_x_k_element_c = x_k_diff_c[np.argmax(abs(x_k_diff_c))]
-    #
-    # prj_grad_hist_d, selfmade_prj_hist_d, fw_hist_d = __perform_experiment_d(n, signal)
-    # x_k_diff_d = fw_hist_d[-1][0] - prj_grad_hist_d[-1][0]
-    # max_x_k_element_d = x_k_diff_d[np.argmax(abs(x_k_diff_d))]
-
-    # history_b = __perform_experiment_b(n, signal)
-    # history_c = __perform_experiment_c(n, signal)
-    # history_d = __perform_experiment_d(n, signal)
+    # __perform_experiment(__perform_experiment_a(signal))
+    # __perform_experiment(__perform_experiment_b(signal))
+    # __perform_experiment(__perform_experiment_c(signal))
+    __perform_experiment(__perform_experiment_d(signal))
 
     """ End of your code
     """
@@ -96,42 +71,68 @@ def task1(signal):
     return fig
 
 
-def __perform_experiment_a(n, signal):
+def __perform_experiment(experiment):
+    proj, selfmade, fw, _ = experiment
+    diff_1 = fw[-1][0] - proj[-1][0]
+    max_prj_fw = diff_1[np.argmax(abs(diff_1))]
+    diff_2 = fw[-1][0] - selfmade[-1][0]
+    max_custom_fw = diff_2[np.argmax(abs(diff_2))]
+    diff_3 = selfmade[-1][0] - proj[-1][0]
+    max_prj_custom = diff_3[np.argmax(abs(diff_3))]
+    x_k_proj = proj[-1][0]
+    x_k_selfmade = selfmade[-1][0]
+    x_k_fw = fw[-1][0]
+
+    print('x')
+
+
+def __perform_experiment_a(signal):
     deviation = 0.01
     d = 15
-    k = {'prj': 500, 'selfmade': 500, 'fw': 500}
+    k = {'prj': 500, 'selfmade': 500, 'fw': 300}
 
-    return __run_all_methods(d, deviation, k, n, signal)
+    return __run_all_methods(d, k, signal, False, deviation)
 
 
-def __perform_experiment_b(n, signal):
+def __perform_experiment_b(signal):
     deviation = 0.03
     d = 15
-    k = {'prj': 300, 'selfmade': 300, 'fw': 300}
+    k = {'prj': 300, 'selfmade': 300, 'fw': 400}
 
-    return __run_all_methods(d, deviation, k, n, signal)
+    return __run_all_methods(d, k, signal, False, deviation)
 
 
-def __perform_experiment_c(n, signal):
+def __perform_experiment_c(signal):
     deviation = 0.01
     d = 100
-    k = {'prj': 300, 'selfmade': 300, 'fw': 300}
+    k = {'prj': 300, 'selfmade': 300, 'fw': 20}
 
-    return __run_all_methods(d, deviation, k, n, signal)
+    return __run_all_methods(d, k, signal, False, deviation)
 
 
-def __perform_experiment_d(n, signal):
+def __perform_experiment_d(signal):
     deviation = 0.01
     d = 5
-    k = {'prj': 300, 'selfmade': 300, 'fw': 300}
+    k = {'prj': 300, 'selfmade': 300, 'fw': 20}
 
-    return __run_all_methods(d, deviation, k, n, signal)
+    return __run_all_methods(d, k, signal, False, deviation)
 
 
-def __run_all_methods(d, deviation, k, n, signal):
-    np.random.seed(RANDOM_STATE)
-    noisy_signal = signal * np.random.normal(0, deviation, size=n)
-    A, lambda_max = __calculate_lipschitz_constant(d, n)
+def __run_all_methods(d, k, signal, two_dimensional_input, deviation=0.0):
+    n = signal.shape[0]
+
+    if not two_dimensional_input:
+        np.random.seed(RANDOM_STATE)
+        noisy_signal = signal + np.random.normal(0, deviation, size=n)
+        A, lambda_max = __calculate_lipschitz_constant(d, n)
+    else:
+        noisy_signal = signal
+        A, lambda_max = __calculate_lipschitz_constant_2d(d, n)
+        noisy_signal = np.ndarray.flatten(signal)  # flatten input image
+        d **= 2
+
+    if k is not dict:
+        k = {'prj': k, 'selfmade': k, 'fw': k}
 
     # Choose arbitrary initial value (i.e. x_0) for vector x within convex unit simplex
     x_k = np.zeros(d)
@@ -144,11 +145,11 @@ def __run_all_methods(d, deviation, k, n, signal):
     selfmade_prj_hist = __selfmade_projection_method(x_k, A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['selfmade'])
     fw_hist = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k)
 
-    return prj_grad_hist, selfmade_prj_hist, fw_hist
+    return prj_grad_hist, selfmade_prj_hist, fw_hist, A
 
 
 def __project_on_unit_simplex(z):
-    z_hat = -np.sort(-z)
+    z_hat = -np.sort(-z)  # sort descending
 
     rho = __calculate_rho(z_hat)
     q = __calculate_q(rho, z_hat)
@@ -169,6 +170,7 @@ def __calculate_q(rho, z_hat):
     for i in range(rho):
         sum_rho_largest_coordinates += z_hat[i]
     q = 1 / rho * (1 - sum_rho_largest_coordinates)
+
     return q
 
 
@@ -177,7 +179,7 @@ def __calculate_rho(z_hat):
 
     for i in range(z_hat.shape[0]):
         sum_of_bigger_coordinates = 0
-        for j in range(i):
+        for j in range(i + 1):
             sum_of_bigger_coordinates += z_hat[j]
         r = z_hat[i] + 1 / (i + 1) * (1 - sum_of_bigger_coordinates)
         if r > 0:
@@ -206,7 +208,7 @@ def __frank_wolfe_method(A, d, k, noisy_signal, x_k):
     for i in range(k):
         gradient_obj_function = __calculate_gradient(A, noisy_signal, x_k)
         y_k = np.zeros(d)
-        y_k[np.argmin(gradient_obj_function)] = 1  # e_i = p(x) = y_k = extremal point, element of lineared version of the cost function over the convex set
+        y_k[np.argmin(gradient_obj_function)] = 1  # e_i = p(x) = y_k = extremal point, element of linearized version of the cost function over the convex set
 
         tau_k = 2 / (k + 1)  # tau_k = step size t_k
         x_k = (1 - tau_k) * x_k + tau_k * y_k
@@ -294,6 +296,7 @@ def __projection_from_hyperplane_to_unit_simplex(d, projection_on_hyperplane):
 
     while np.sum(np.array(projection_on_hyperplane) < 0) > 0:  # negative values exist
         for j in range(d):
+
             if projection_on_hyperplane[j] > 0:
                 continue
 
@@ -307,6 +310,37 @@ def __projection_from_hyperplane_to_unit_simplex(d, projection_on_hyperplane):
     return x_k_1
 
 
+def __calculate_lipschitz_constant_2d(d, n):
+    # Define often needed values
+    alpha_l_1 = 1 / np.sqrt(n)
+    alpha_l_d = np.sqrt(2 / n)  # alpha for all other basic functions of DCT (i.e. every column except the first d ones in dictionary matrix A), i.e. d^2 - d
+
+    alpha_l = np.full(d, alpha_l_d)
+    alpha_l[0] = alpha_l_1
+
+    alpha_l_m = np.matmul(alpha_l.reshape((d, 1)), alpha_l.reshape((1, d))).flatten()
+
+    # Define empty dictionary matrix for DCT
+    A = np.empty((n, n, d ** 2))
+
+    # Calculate dictionary matrix
+    for i in range(1, n + 1):
+        for j in range(1, n + 1):
+            cos_lm_vector = np.empty((d, d))
+            for l in range(1, d + 1):
+                for m in range(1, d + 1):
+                    cos_1 = np.cos(np.pi / n * (l - 1) * (i - 1/2))
+                    cos_2 = np.cos(np.pi / n * (m - 1) * (j - 1/2))
+                    cos_lm_vector[l - 1, m - 1] = cos_1 * cos_2
+            A[i - 1, j - 1] = cos_lm_vector.reshape(d**2)
+    A = A.reshape((n**2, d**2)) * alpha_l_m  # calculated dictionary matrix for DCT: shape = (n**2, d**2)
+
+    M = np.matmul(A.T, A)  # calculate hessian
+    lambda_max = power_iteration(M)  # largest computed eigenvalue based on power-iteration algorithm = Lipschitz constant
+
+    return A, lambda_max
+
+
 def __calculate_lipschitz_constant(d, n):
     alpha_j_1 = __calculate_alpha_j_1(n)
     alpha_j_n = np.sqrt(2 / n)  # alpha for all other basic functions of DCT (i.e. every column except the first one in dictionary matrix A)
@@ -314,7 +348,6 @@ def __calculate_lipschitz_constant(d, n):
     A = np.empty((n, d))  # dictionary matrix for DCT
 
     for j in range(1, d + 1):
-        M = np.matmul(A.T, A)
         cos_part_1 = np.pi / n * (j - 1)
         for i in range(1, n + 1):
             cos_term = np.cos(cos_part_1 * (i - 1 / 2))
@@ -323,6 +356,7 @@ def __calculate_lipschitz_constant(d, n):
             else:
                 A[i - 1, j - 1] = alpha_j_n * cos_term
 
+    M = np.matmul(A.T, A)
     lambda_max = power_iteration(M)  # largest computed eigenvalue based on power-iteration algorithm = Lipschitz constant
 
     return A, lambda_max
@@ -348,11 +382,12 @@ def task2(img):
     fig = plt.figure(figsize=(11,9), constrained_layout=True)
     fig.suptitle('Task 2 - Image Representation', fontsize=16)
     ax = [None, None, None, None]
-    g = fig.add_gridspec(9, 9)
+    g = fig.add_gridspec(9, 12)
     ax[0] = fig.add_subplot(g[1:4:, 0:3])
     ax[1] = fig.add_subplot(g[1:4:, 3:6])
-    ax[2] = fig.add_subplot(g[1:4:, 6:])
-    ax[3] = fig.add_subplot(g[4:, :])
+    ax[2] = fig.add_subplot(g[1:4:, 6:9])
+    ax[3] = fig.add_subplot(g[1:4:, 9:])
+    # ax[4] = fig.add_subplot(g[4:, :])
 
     for ax_ in ax[:-1]:
         ax_.set_aspect('equal')
@@ -366,6 +401,20 @@ def task2(img):
     """ Start of your code
     """
 
+    d = 25
+    prj_grad_hist, selfmade_prj_hist, fw_hist, A = __run_all_methods(d=d, k=1500, signal=img, two_dimensional_input=True)
+
+    ax[0].imshow(img)
+
+    prj_gradient_img = np.matmul(A, prj_grad_hist[-1][0]).reshape((img.shape[0], img.shape[1]))
+    ax[1].imshow(prj_gradient_img)
+
+    selfmade_gradient_img = np.matmul(A, selfmade_prj_hist[-1][0]).reshape((img.shape[0], img.shape[1]))
+    ax[2].imshow(selfmade_gradient_img)
+
+    fw_gradient_img = np.matmul(A, fw_hist[-1][0]).reshape((img.shape[0], img.shape[1]))
+    ax[3].imshow(fw_gradient_img)
+
     """ End of your code
     """
 
@@ -375,12 +424,13 @@ def task2(img):
 if __name__ == "__main__":
     args = []
     with np.load('data.npz') as data:
-        args.append(data['sig'])
+        # args.append(data['sig'])
         args.append(data['yoshi'])
     
     pdf = PdfPages('figures.pdf')
 
-    for task, arg in zip([task1, task2], args):
+    # for task, arg in zip([task1, task2], args):
+    for task, arg in zip([task2], args):
         retval = task(arg)
         fig = retval[0] if type(retval) is tuple else retval
         pdf.savefig(fig)
