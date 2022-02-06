@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import scipy
 import scipy.optimize
 from matplotlib.backends.backend_pdf import PdfPages
-from numpy.linalg import inv
+from numpy.linalg import inv, norm
 from numpy.random import set_state, SeedSequence, RandomState, MT19937
 
 RANDOM_STATE = 42
@@ -215,6 +215,12 @@ def __frank_wolfe_method(A, d, k, noisy_signal, x_k, exact_line_search=False):
             numerator = (np.matmul(noisy_signal.T, term_1) - np.matmul(x_k.T, np.matmul(A.T, term_1)))
             denominator = np.matmul(term_1.T, term_1)
             tau_k = numerator / denominator
+
+            # ensure that tau_k lies between closed interval [0, 1]
+            if tau_k < 0:
+                tau_k = 0
+            if tau_k > 1:
+                tau_k = 1
         else:
             tau_k = 2 / (k + 1)  # tau_k = step size t_k
 
@@ -434,7 +440,8 @@ def task2(img):
     """
 
     d = 2
-    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A = __run_all_methods(d=d, k=1500, signal=img, two_dimensional_input=True)
+    k = 1500
+    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A = __run_all_methods(d=d, k=k, signal=img, two_dimensional_input=True)
 
     # Ground truth image
     ax[0].imshow(img)
@@ -455,11 +462,31 @@ def task2(img):
     fw_exact_line_search_img = np.matmul(A, fw_exact_line_search[-1][0]).reshape((img.shape[0], img.shape[1]))
     ax[4].imshow(fw_exact_line_search_img)
 
+    obj_fun_proj = __calculate_progression_of_objective_function(A, img, prj_gradient)
+    obj_fun_proj_custom = __calculate_progression_of_objective_function(A, img, prj_gradient_custom)
+    obj_fun_fw = __calculate_progression_of_objective_function(A, img, fw)
+    obj_fun_fw_exact_line_search = __calculate_progression_of_objective_function(A, img, fw_exact_line_search)
+
+    iterations = np.arange(1, k + 1)  # k=1500 iterations
+    obj_fun_proj_handle, = ax[5].semilogy(iterations, obj_fun_proj, color="forestgreen", label="Projected gradient method")
+    obj_fun_proj_custom_handle, = ax[5].semilogy(iterations, obj_fun_proj_custom, color="darkred", label="Custom projected gradient method (our derived formula)")
+    obj_fun_fw_handle, = ax[5].semilogy(iterations, obj_fun_fw, color="mediumblue", label="Frank Wolfe: predefined diminishing step size")
+    obj_fun_fw_exact_line_search_handle, = ax[5].semilogy(iterations, obj_fun_fw_exact_line_search, color="darkorange", label="Frank Wolfe: exact line search")
+    ax[5].legend(handles=[obj_fun_proj_handle, obj_fun_proj_custom_handle, obj_fun_fw_handle, obj_fun_fw_exact_line_search_handle])
+
     """ End of your code
     """
 
     return fig
 
+
+def __calculate_progression_of_objective_function(A, img, method_history):
+    obj_function_values = []
+    for hist in method_history:
+        x_k = hist[0]
+        obj_function_values.append(1 / 2 * norm(np.matmul(A, x_k) - np.ndarray.flatten(img), 2))
+
+    return obj_function_values
 
 if __name__ == "__main__":
     args = []
