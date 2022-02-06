@@ -7,6 +7,7 @@ from numpy.linalg import inv
 from numpy.random import set_state, SeedSequence, RandomState, MT19937
 
 RANDOM_STATE = 42
+use_exact_line_search = True
 
 
 def power_iteration(M: np.array, eps: float = 1e-8) -> float:
@@ -206,7 +207,14 @@ def __frank_wolfe_method(A, d, k, noisy_signal, x_k):
         y_k = np.zeros(d)
         y_k[np.argmin(gradient_obj_function)] = 1  # e_i = p(x) = y_k = extremal point, element of linearized version of the cost function over the convex set
 
-        tau_k = 2 / (k + 1)  # tau_k = step size t_k
+        if use_exact_line_search:  # tau_k = (b.T * A * (y_k - x_k) - x_k.T * A.T * A * (y_k - x_k)) / ((y_k.T - x_k.T) * A.T * A * (y_k - x_k)
+            term_1 = np.matmul(A, (y_k - x_k))
+            numerator = (np.matmul(noisy_signal.T, term_1) - np.matmul(x_k.T, np.matmul(A.T, term_1)))
+            denominator = np.matmul(term_1.T, term_1)
+            tau_k = numerator / denominator
+        else:
+            tau_k = 2 / (k + 1)  # tau_k = step size t_k
+
         x_k = (1 - tau_k) * x_k + tau_k * y_k
         x_k_history.append((x_k, np.sum(x_k)))
 
@@ -412,7 +420,7 @@ def task2(img):
     """ Start of your code
     """
 
-    d = 17
+    d = 20
     prj_grad_hist, selfmade_prj_hist, fw_hist, A = __run_all_methods(d=d, k=1500, signal=img, two_dimensional_input=True)
 
     ax[0].imshow(img)
