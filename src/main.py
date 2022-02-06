@@ -6,12 +6,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 from numpy.linalg import inv
 from numpy.random import set_state, SeedSequence, RandomState, MT19937
 
-
 RANDOM_STATE = 42
 
 
-def power_iteration(M: np.array, eps:float=1e-8) -> float:
-
+def power_iteration(M: np.array, eps: float = 1e-8) -> float:
     assert len(M.shape) == 2, 'M must be matrix with 2 dimensions'
     assert M.shape[0] == M.shape[1], 'M must be a square matrix'
 
@@ -46,24 +44,24 @@ def task1(signal):
 
     """
 
-    fig, ax = plt.subplots(2, 2, figsize=(16,8))
+    fig, ax = plt.subplots(2, 2, figsize=(16, 8))
     fig.suptitle('Task 1 - Signal denoising task', fontsize=16)
 
-    ax[0,0].set_title('a)')
+    ax[0, 0].set_title('a)')
 
-    ax[0,1].set_title('b)')
+    ax[0, 1].set_title('b)')
 
-    ax[1,0].set_title('c)')
+    ax[1, 0].set_title('c)')
 
-    ax[1,1].set_title('d)')
+    ax[1, 1].set_title('d)')
 
     """ Start of your code
     """
 
     # __perform_experiment(__perform_experiment_a(signal))
     # __perform_experiment(__perform_experiment_b(signal))
-    # __perform_experiment(__perform_experiment_c(signal))
-    __perform_experiment(__perform_experiment_d(signal))
+    __perform_experiment(__perform_experiment_c(signal))
+    # __perform_experiment(__perform_experiment_d(signal))
 
     """ End of your code
     """
@@ -130,8 +128,6 @@ def __run_all_methods(d, k, signal, two_dimensional_input, deviation=0.0):
         A, lambda_max = __calculate_lipschitz_constant_2d(d, n)
         noisy_signal = np.ndarray.flatten(signal)  # flatten input image
         d **= 2
-
-    if k is not dict:
         k = {'prj': k, 'selfmade': k, 'fw': k}
 
     # Choose arbitrary initial value (i.e. x_0) for vector x within convex unit simplex
@@ -329,11 +325,11 @@ def __calculate_lipschitz_constant_2d(d, n):
             cos_lm_vector = np.empty((d, d))
             for l in range(1, d + 1):
                 for m in range(1, d + 1):
-                    cos_1 = np.cos(np.pi / n * (l - 1) * (i - 1/2))
-                    cos_2 = np.cos(np.pi / n * (m - 1) * (j - 1/2))
+                    cos_1 = np.cos(np.pi / n * (l - 1) * (i - 1 / 2))
+                    cos_2 = np.cos(np.pi / n * (m - 1) * (j - 1 / 2))
                     cos_lm_vector[l - 1, m - 1] = cos_1 * cos_2
-            A[i - 1, j - 1] = cos_lm_vector.reshape(d**2)
-    A = A.reshape((n**2, d**2)) * alpha_l_m  # calculated dictionary matrix for DCT: shape = (n**2, d**2)
+            A[i - 1, j - 1] = cos_lm_vector.reshape(d ** 2)
+    A = A.reshape((n ** 2, d ** 2)) * alpha_l_m  # calculated dictionary matrix for DCT: shape = (n**2, d**2)
 
     M = np.matmul(A.T, A)  # calculate hessian
     lambda_max = power_iteration(M)  # largest computed eigenvalue based on power-iteration algorithm = Lipschitz constant
@@ -368,7 +364,6 @@ def __calculate_alpha_j_1(n):
 
 
 def task2(img):
-
     """ Image Representation
 
         Requirements for the plots:
@@ -379,7 +374,7 @@ def task2(img):
                     iterations for both methods
     """
 
-    fig = plt.figure(figsize=(11,9), constrained_layout=True)
+    fig = plt.figure(figsize=(11, 9), constrained_layout=True)
     fig.suptitle('Task 2 - Image Representation', fontsize=16)
     ax = [None, None, None, None]
     g = fig.add_gridspec(9, 12)
@@ -393,15 +388,15 @@ def task2(img):
         ax_.set_aspect('equal')
         ax_.get_xaxis().set_visible(False)
         ax_.get_yaxis().set_visible(False)
-    
+
     ax[0].set_title('GT')
     ax[1].set_title('Proj. GD')
     ax[2].set_title('Frank-Wolfe')
-    
+
     """ Start of your code
     """
 
-    d = 25
+    d = 2
     prj_grad_hist, selfmade_prj_hist, fw_hist, A = __run_all_methods(d=d, k=1500, signal=img, two_dimensional_input=True)
 
     ax[0].imshow(img)
@@ -420,13 +415,13 @@ def task2(img):
 
     return fig
 
-    
+
 if __name__ == "__main__":
     args = []
     with np.load('data.npz') as data:
         # args.append(data['sig'])
         args.append(data['yoshi'])
-    
+
     pdf = PdfPages('figures.pdf')
 
     # for task, arg in zip([task1, task2], args):
