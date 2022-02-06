@@ -306,6 +306,21 @@ def __projection_from_hyperplane_to_unit_simplex(d, projection_on_hyperplane):
     return x_k_1
 
 
+def __flatten_first_two_dimensions(n: np.ndarray):
+    """ Takes 3d tensor as input, flattens the first two dimensions and returns the resulting 2d tensor.
+
+    :param n: 3d input tensor
+    :return: transformed 2d output tensor (first two dimensions are C-order flattened
+    """
+
+    n_transformed = np.empty((n.shape[0] * n.shape[1], n.shape[2]))
+
+    for i in range(n.shape[2]):
+        n_transformed[:, i] = n[:, :, i].flatten()
+
+    return n_transformed
+
+
 def __calculate_lipschitz_constant_2d(d, n):
     # Define often needed values
     alpha_l_1 = 1 / np.sqrt(n)
@@ -329,7 +344,8 @@ def __calculate_lipschitz_constant_2d(d, n):
                     cos_2 = np.cos(np.pi / n * (m - 1) * (j - 1 / 2))
                     cos_lm_vector[l - 1, m - 1] = cos_1 * cos_2
             A[i - 1, j - 1] = cos_lm_vector.reshape(d ** 2)
-    A = A.reshape((n ** 2, d ** 2)) * alpha_l_m  # calculated dictionary matrix for DCT: shape = (n**2, d**2)
+
+    A = __flatten_first_two_dimensions(A) * alpha_l_m  # calculated dictionary matrix for DCT: shape = (n**2, d**2)
 
     M = np.matmul(A.T, A)  # calculate hessian
     lambda_max = power_iteration(M)  # largest computed eigenvalue based on power-iteration algorithm = Lipschitz constant
@@ -396,7 +412,7 @@ def task2(img):
     """ Start of your code
     """
 
-    d = 2
+    d = 17
     prj_grad_hist, selfmade_prj_hist, fw_hist, A = __run_all_methods(d=d, k=1500, signal=img, two_dimensional_input=True)
 
     ax[0].imshow(img)
