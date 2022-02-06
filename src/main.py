@@ -7,7 +7,6 @@ from numpy.linalg import inv
 from numpy.random import set_state, SeedSequence, RandomState, MT19937
 
 RANDOM_STATE = 42
-use_exact_line_search = True
 
 
 def power_iteration(M: np.array, eps: float = 1e-8) -> float:
@@ -71,7 +70,7 @@ def task1(signal):
 
 
 def __perform_experiment(experiment):
-    proj, selfmade, fw, _ = experiment
+    proj, selfmade, fw, _, _ = experiment
     diff_1 = fw[-1][0] - proj[-1][0]
     max_prj_fw = diff_1[np.argmax(abs(diff_1))]
     diff_2 = fw[-1][0] - selfmade[-1][0]
@@ -138,11 +137,15 @@ def __run_all_methods(d, k, signal, two_dimensional_input, deviation=0.0):
     # Use verification example posted on forum by Christian Kopf
     # x_k = np.array([-0.4, 0.3, .5, 1.2])
 
-    prj_grad_hist = __projected_gradient_method(x_k, A, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['prj'])
-    selfmade_prj_hist = __selfmade_projection_method(x_k, A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['selfmade'])
-    fw_hist = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k)
+    prj_gradient = __projected_gradient_method(x_k, A, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['prj'])
+    prj_gradient_custom = __selfmade_projection_method(x_k, A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['selfmade'])
+    fw = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k)
+    if two_dimensional_input:
+        fw_exact_line_search = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k, True)
+    else:
+        fw_exact_line_search = None
 
-    return prj_grad_hist, selfmade_prj_hist, fw_hist, A
+    return prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A
 
 
 def __project_on_unit_simplex(z):
@@ -199,7 +202,7 @@ def __projected_gradient_method(x_k, A, lambda_max, noisy_signal, eps_step_size,
     return x_k_history
 
 
-def __frank_wolfe_method(A, d, k, noisy_signal, x_k):
+def __frank_wolfe_method(A, d, k, noisy_signal, x_k, exact_line_search=False):
     x_k_history = []
 
     for i in range(k):
@@ -207,7 +210,7 @@ def __frank_wolfe_method(A, d, k, noisy_signal, x_k):
         y_k = np.zeros(d)
         y_k[np.argmin(gradient_obj_function)] = 1  # e_i = p(x) = y_k = extremal point, element of linearized version of the cost function over the convex set
 
-        if use_exact_line_search:  # tau_k = (b.T * A * (y_k - x_k) - x_k.T * A.T * A * (y_k - x_k)) / ((y_k.T - x_k.T) * A.T * A * (y_k - x_k)
+        if exact_line_search:  # tau_k = (b.T * A * (y_k - x_k) - x_k.T * A.T * A * (y_k - x_k)) / ((y_k.T - x_k.T) * A.T * A * (y_k - x_k)
             term_1 = np.matmul(A, (y_k - x_k))
             numerator = (np.matmul(noisy_signal.T, term_1) - np.matmul(x_k.T, np.matmul(A.T, term_1)))
             denominator = np.matmul(term_1.T, term_1)
@@ -400,39 +403,57 @@ def task2(img):
 
     fig = plt.figure(figsize=(11, 9), constrained_layout=True)
     fig.suptitle('Task 2 - Image Representation', fontsize=16)
-    ax = [None, None, None, None]
-    g = fig.add_gridspec(9, 12)
-    ax[0] = fig.add_subplot(g[1:4:, 0:3])
-    ax[1] = fig.add_subplot(g[1:4:, 3:6])
-    ax[2] = fig.add_subplot(g[1:4:, 6:9])
-    ax[3] = fig.add_subplot(g[1:4:, 9:])
-    # ax[4] = fig.add_subplot(g[4:, :])
+    ax = [None, None, None, None, None, None]
+
+    # g = fig.add_gridspec(9, 9)
+    # ax[0] = fig.add_subplot(g[1:4, 0:3])
+    # ax[1] = fig.add_subplot(g[1:4, 3:6])
+    # ax[2] = fig.add_subplot(g[1:4, 6:])
+    # ax[3] = fig.add_subplot(g[4:, :])
+
+    g = fig.add_gridspec(12, 9)
+    ax[0] = fig.add_subplot(g[1:4, 0:3])
+    ax[1] = fig.add_subplot(g[1:4, 3:6])
+    ax[2] = fig.add_subplot(g[1:4, 6:9])
+    ax[3] = fig.add_subplot(g[4:7, 3:6])
+    ax[4] = fig.add_subplot(g[4:7, 6:9])
+    ax[5] = fig.add_subplot(g[7:, :])
 
     for ax_ in ax[:-1]:
         ax_.set_aspect('equal')
         ax_.get_xaxis().set_visible(False)
         ax_.get_yaxis().set_visible(False)
 
-    ax[0].set_title('GT')
+    ax[0].set_title('Ground Truth image')
     ax[1].set_title('Proj. GD')
-    ax[2].set_title('Frank-Wolfe')
+    ax[2].set_title('Custom Proj. GD')
+    ax[3].set_title('FW: predefined diminishing step size')
+    ax[4].set_title('FW: exact line search')
 
     """ Start of your code
     """
 
-    d = 20
-    prj_grad_hist, selfmade_prj_hist, fw_hist, A = __run_all_methods(d=d, k=1500, signal=img, two_dimensional_input=True)
+    d = 2
+    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A = __run_all_methods(d=d, k=1500, signal=img, two_dimensional_input=True)
 
+    # Ground truth image
     ax[0].imshow(img)
 
-    prj_gradient_img = np.matmul(A, prj_grad_hist[-1][0]).reshape((img.shape[0], img.shape[1]))
+    # Projected gradient method
+    prj_gradient_img = np.matmul(A, prj_gradient[-1][0]).reshape((img.shape[0], img.shape[1]))
     ax[1].imshow(prj_gradient_img)
 
-    selfmade_gradient_img = np.matmul(A, selfmade_prj_hist[-1][0]).reshape((img.shape[0], img.shape[1]))
-    ax[2].imshow(selfmade_gradient_img)
+    # Custom projected gradient method
+    prj_gradient_custom_img = np.matmul(A, prj_gradient_custom[-1][0]).reshape((img.shape[0], img.shape[1]))
+    ax[2].imshow(prj_gradient_custom_img)
 
-    fw_gradient_img = np.matmul(A, fw_hist[-1][0]).reshape((img.shape[0], img.shape[1]))
-    ax[3].imshow(fw_gradient_img)
+    # Frank-Wolfe using predefined diminishing step size
+    fw_img = np.matmul(A, fw[-1][0]).reshape((img.shape[0], img.shape[1]))
+    ax[3].imshow(fw_img)
+
+    # Frank-Wolfe using exact line search
+    fw_exact_line_search_img = np.matmul(A, fw_exact_line_search[-1][0]).reshape((img.shape[0], img.shape[1]))
+    ax[4].imshow(fw_exact_line_search_img)
 
     """ End of your code
     """
