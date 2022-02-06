@@ -411,12 +411,6 @@ def task2(img):
     fig.suptitle('Task 2 - Image Representation', fontsize=16)
     ax = [None, None, None, None, None, None]
 
-    # g = fig.add_gridspec(9, 9)
-    # ax[0] = fig.add_subplot(g[1:4, 0:3])
-    # ax[1] = fig.add_subplot(g[1:4, 3:6])
-    # ax[2] = fig.add_subplot(g[1:4, 6:])
-    # ax[3] = fig.add_subplot(g[4:, :])
-
     g = fig.add_gridspec(12, 9)
     ax[0] = fig.add_subplot(g[1:4, 0:3])
     ax[1] = fig.add_subplot(g[1:4, 3:6])
@@ -439,7 +433,7 @@ def task2(img):
     """ Start of your code
     """
 
-    d = 2
+    d = 33
     k = 1500
     prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A = __run_all_methods(d=d, k=k, signal=img, two_dimensional_input=True)
 
@@ -467,6 +461,7 @@ def task2(img):
     obj_fun_fw = __calculate_progression_of_objective_function(A, img, fw)
     obj_fun_fw_exact_line_search = __calculate_progression_of_objective_function(A, img, fw_exact_line_search)
 
+    # Progression of objective function over iterations
     iterations = np.arange(1, k + 1)  # k=1500 iterations
     obj_fun_proj_handle, = ax[5].semilogy(iterations, obj_fun_proj, color="forestgreen", label="Projected gradient method")
     obj_fun_proj_custom_handle, = ax[5].semilogy(iterations, obj_fun_proj_custom, color="darkred", label="Custom projected gradient method (our derived formula)")
@@ -487,6 +482,7 @@ def __calculate_progression_of_objective_function(A, img, method_history):
         obj_function_values.append(1 / 2 * norm(np.matmul(A, x_k) - np.ndarray.flatten(img), 2))
 
     return obj_function_values
+
 
 if __name__ == "__main__":
     args = []
