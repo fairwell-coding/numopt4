@@ -58,10 +58,10 @@ def task1(signal):
     """ Start of your code
     """
 
-    # __perform_experiment(__perform_experiment_a(signal), signal)
-    # __perform_experiment(__perform_experiment_b(signal), signal)
-    # __perform_experiment(__perform_experiment_c(signal), signal)
-    __perform_experiment(__perform_experiment_d(signal), signal)
+    __perform_experiment_a(ax[0, 0], signal)
+    __perform_experiment_b(ax[0, 1], signal)
+    __perform_experiment_c(ax[1, 0], signal)
+    __perform_experiment_d(ax[1, 1], signal)
 
     """ End of your code
     """
@@ -69,9 +69,8 @@ def task1(signal):
     return fig
 
 
-def __perform_experiment(experiment, signal):
-    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A = experiment
-
+def __evaluate_algorithm(A, fw, fw_exact_line_search, prj_gradient, prj_gradient_custom, signal):
+    # Some performance metrics in order to evaluate performance and proper functionality of the algorithms
     diff_1 = fw[-1][0] - prj_gradient[-1][0]
     max_prj_fw = diff_1[np.argmax(abs(diff_1))]
 
@@ -92,39 +91,70 @@ def __perform_experiment(experiment, signal):
     cost_fw = obj_fun_fw[-1]
     cost_fw_exact_line_search = obj_fun_fw_exact_line_search[-1]
 
-    print('x')
 
-
-def __perform_experiment_a(signal):
+def __perform_experiment_a(subplot, signal):
     deviation = 0.01
     d = 15
     k = {'prj': 30, 'selfmade': 30, 'fw': 150, 'fw_line': 30}
 
-    return __run_all_methods(d, k, signal, False, deviation)
+    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A, noisy_signal = __run_all_methods(d, k, signal, False, deviation)
+    __evaluate_algorithm(A, fw, fw_exact_line_search, prj_gradient, prj_gradient_custom, signal)
+
+    __plot_signals(A, fw, fw_exact_line_search, noisy_signal, prj_gradient, prj_gradient_custom, signal, subplot)
 
 
-def __perform_experiment_b(signal):
+def __plot_signals(A, fw, fw_exact_line_search, noisy_signal, prj_gradient, prj_gradient_custom, signal, subplot):
+    # Create signal plot
+    signal_dim = signal.shape[0]
+    signal_dims = np.arange(1, signal_dim + 1)  # signal dim = 200
+
+    # Calculate reconstructed signals using the formula A*x_k
+    signal_prj = np.matmul(A, prj_gradient[-1][0])
+    signal_prj_custom = np.matmul(A, prj_gradient_custom[-1][0])
+    signal_fw = np.matmul(A, fw[-1][0])
+    signal_fw_line_search = np.matmul(A, fw_exact_line_search[-1][0])
+
+    # Create plot
+    handle_clean, = subplot.plot(signal_dims, signal, color="darkviolet", label="Clean signal")
+    handle_noisy, = subplot.plot(signal_dims, noisy_signal, color="gold", label="Noisy signal")
+    handle_prj, = subplot.plot(signal_dims, signal_prj, color="forestgreen", label="Projected gradient method")
+    handle_prj_custom, = subplot.plot(signal_dims, signal_prj_custom, color="darkred", label="Custom projected gradient method (our derived formula)")
+    handle_fw, = subplot.plot(signal_dims, signal_fw, color="mediumblue", label="Frank Wolfe: predefined diminishing step size")
+    handle_fw_line_search, = subplot.plot(signal_dims, signal_fw_line_search, color="darkorange", label="Frank Wolfe: exact line search")
+    subplot.legend(handles=[handle_clean, handle_noisy, handle_prj, handle_prj_custom, handle_fw, handle_fw_line_search], loc='upper right', prop={'size': 7})
+
+
+def __perform_experiment_b(subplot, signal):
     deviation = 0.03
     d = 15
     k = {'prj': 6, 'selfmade': 6, 'fw': 6, 'fw_line': 5}
 
-    return __run_all_methods(d, k, signal, False, deviation)
+    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A, noisy_signal = __run_all_methods(d, k, signal, False, deviation)
+    __evaluate_algorithm(A, fw, fw_exact_line_search, prj_gradient, prj_gradient_custom, signal)
+
+    __plot_signals(A, fw, fw_exact_line_search, noisy_signal, prj_gradient, prj_gradient_custom, signal, subplot)
 
 
-def __perform_experiment_c(signal):
+def __perform_experiment_c(subplot, signal):
     deviation = 0.01
     d = 100
     k = {'prj': 30, 'selfmade': 30, 'fw': 20, 'fw_line': 15}
 
-    return __run_all_methods(d, k, signal, False, deviation)
+    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A, noisy_signal = __run_all_methods(d, k, signal, False, deviation)
+    __evaluate_algorithm(A, fw, fw_exact_line_search, prj_gradient, prj_gradient_custom, signal)
+
+    __plot_signals(A, fw, fw_exact_line_search, noisy_signal, prj_gradient, prj_gradient_custom, signal, subplot)
 
 
-def __perform_experiment_d(signal):
+def __perform_experiment_d(subplot, signal):
     deviation = 0.01
     d = 5
     k = {'prj': 6, 'selfmade': 6, 'fw': 30, 'fw_line': 6}
 
-    return __run_all_methods(d, k, signal, False, deviation)
+    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A, noisy_signal = __run_all_methods(d, k, signal, False, deviation)
+    __evaluate_algorithm(A, fw, fw_exact_line_search, prj_gradient, prj_gradient_custom, signal)
+
+    __plot_signals(A, fw, fw_exact_line_search, noisy_signal, prj_gradient, prj_gradient_custom, signal, subplot)
 
 
 def __run_all_methods(d, k, signal, two_dimensional_input, deviation=0.0):
@@ -151,14 +181,9 @@ def __run_all_methods(d, k, signal, two_dimensional_input, deviation=0.0):
     prj_gradient = __projected_gradient_method(x_k, A, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['prj'])
     prj_gradient_custom = __selfmade_projection_method(x_k, A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['selfmade'])
     fw = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k)
-    # if two_dimensional_input:
-    #     fw_exact_line_search = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k, True)
-    # else:
-    #     fw_exact_line_search = None
-
     fw_exact_line_search = __frank_wolfe_method(A, d, k['fw_line'], noisy_signal, x_k, True)
 
-    return prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A
+    return prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A, noisy_signal
 
 
 def __project_on_unit_simplex(z):
@@ -323,7 +348,7 @@ def __projection_from_hyperplane_to_unit_simplex(d, projection_on_hyperplane):
     while np.sum(np.array(projection_on_hyperplane) < 0) > 0:  # negative values exist
         for j in range(d):
 
-            if projection_on_hyperplane[j] > 0:
+            if projection_on_hyperplane[j] > 0:  # positive values don't need modification and may be skipped
                 continue
 
             binary_projection_mask[j] = 0
@@ -448,7 +473,7 @@ def task2(img):
 
     d = 33
     k = 1500
-    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A = __run_all_methods(d=d, k=k, signal=img, two_dimensional_input=True)
+    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A, _ = __run_all_methods(d=d, k=k, signal=img, two_dimensional_input=True)
 
     # Ground truth image
     ax[0].imshow(img)
@@ -510,8 +535,7 @@ if __name__ == "__main__":
 
     pdf = PdfPages('figures.pdf')
 
-    # for task, arg in zip([task1, task2], args):
-    for task, arg in zip([task1], args):
+    for task, arg in zip([task1, task2], args):
         retval = task(arg)
         fig = retval[0] if type(retval) is tuple else retval
         pdf.savefig(fig)
