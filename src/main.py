@@ -58,10 +58,10 @@ def task1(signal):
     """ Start of your code
     """
 
-    # __perform_experiment(__perform_experiment_a(signal))
-    # __perform_experiment(__perform_experiment_b(signal))
-    __perform_experiment(__perform_experiment_c(signal))
-    # __perform_experiment(__perform_experiment_d(signal))
+    # __perform_experiment(__perform_experiment_a(signal), signal)
+    # __perform_experiment(__perform_experiment_b(signal), signal)
+    # __perform_experiment(__perform_experiment_c(signal), signal)
+    __perform_experiment(__perform_experiment_d(signal), signal)
 
     """ End of your code
     """
@@ -69,17 +69,28 @@ def task1(signal):
     return fig
 
 
-def __perform_experiment(experiment):
-    proj, selfmade, fw, _, _ = experiment
-    diff_1 = fw[-1][0] - proj[-1][0]
+def __perform_experiment(experiment, signal):
+    prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A = experiment
+
+    diff_1 = fw[-1][0] - prj_gradient[-1][0]
     max_prj_fw = diff_1[np.argmax(abs(diff_1))]
-    diff_2 = fw[-1][0] - selfmade[-1][0]
+
+    diff_2 = fw[-1][0] - prj_gradient_custom[-1][0]
     max_custom_fw = diff_2[np.argmax(abs(diff_2))]
-    diff_3 = selfmade[-1][0] - proj[-1][0]
+
+    diff_3 = prj_gradient_custom[-1][0] - prj_gradient[-1][0]
     max_prj_custom = diff_3[np.argmax(abs(diff_3))]
-    x_k_proj = proj[-1][0]
-    x_k_selfmade = selfmade[-1][0]
+
+    x_k_proj = prj_gradient[-1][0]
+    x_k_selfmade = prj_gradient_custom[-1][0]
     x_k_fw = fw[-1][0]
+
+    # Obtain values of cost function to decide for good values of k for all experiments & algorithms
+    obj_fun_fw, obj_fun_fw_exact_line_search, obj_fun_proj, obj_fun_proj_custom = __calculate_progression_of_objective_functions(A, fw, fw_exact_line_search, signal, prj_gradient, prj_gradient_custom)
+    cost_prj = obj_fun_proj[-1]
+    cost_prj_custom = obj_fun_proj_custom[-1]
+    cost_fw = obj_fun_fw[-1]
+    cost_fw_exact_line_search = obj_fun_fw_exact_line_search[-1]
 
     print('x')
 
@@ -87,7 +98,7 @@ def __perform_experiment(experiment):
 def __perform_experiment_a(signal):
     deviation = 0.01
     d = 15
-    k = {'prj': 500, 'selfmade': 500, 'fw': 300}
+    k = {'prj': 30, 'selfmade': 30, 'fw': 150, 'fw_line': 30}
 
     return __run_all_methods(d, k, signal, False, deviation)
 
@@ -95,7 +106,7 @@ def __perform_experiment_a(signal):
 def __perform_experiment_b(signal):
     deviation = 0.03
     d = 15
-    k = {'prj': 300, 'selfmade': 300, 'fw': 400}
+    k = {'prj': 6, 'selfmade': 6, 'fw': 6, 'fw_line': 5}
 
     return __run_all_methods(d, k, signal, False, deviation)
 
@@ -103,7 +114,7 @@ def __perform_experiment_b(signal):
 def __perform_experiment_c(signal):
     deviation = 0.01
     d = 100
-    k = {'prj': 300, 'selfmade': 300, 'fw': 20}
+    k = {'prj': 30, 'selfmade': 30, 'fw': 20, 'fw_line': 15}
 
     return __run_all_methods(d, k, signal, False, deviation)
 
@@ -111,7 +122,7 @@ def __perform_experiment_c(signal):
 def __perform_experiment_d(signal):
     deviation = 0.01
     d = 5
-    k = {'prj': 300, 'selfmade': 300, 'fw': 20}
+    k = {'prj': 6, 'selfmade': 6, 'fw': 30, 'fw_line': 6}
 
     return __run_all_methods(d, k, signal, False, deviation)
 
@@ -128,7 +139,7 @@ def __run_all_methods(d, k, signal, two_dimensional_input, deviation=0.0):
         A, lambda_max = __calculate_lipschitz_constant_2d(d, n)
         noisy_signal = np.ndarray.flatten(signal)  # flatten input image
         d **= 2
-        k = {'prj': k, 'selfmade': k, 'fw': k}
+        k = {'prj': k, 'selfmade': k, 'fw': k, 'fw_line': k}
 
     # Choose arbitrary initial value (i.e. x_0) for vector x within convex unit simplex
     x_k = np.zeros(d)
@@ -140,10 +151,12 @@ def __run_all_methods(d, k, signal, two_dimensional_input, deviation=0.0):
     prj_gradient = __projected_gradient_method(x_k, A, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['prj'])
     prj_gradient_custom = __selfmade_projection_method(x_k, A, d, lambda_max, noisy_signal, eps_step_size=1E-4, k=k['selfmade'])
     fw = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k)
-    if two_dimensional_input:
-        fw_exact_line_search = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k, True)
-    else:
-        fw_exact_line_search = None
+    # if two_dimensional_input:
+    #     fw_exact_line_search = __frank_wolfe_method(A, d, k['fw'], noisy_signal, x_k, True)
+    # else:
+    #     fw_exact_line_search = None
+
+    fw_exact_line_search = __frank_wolfe_method(A, d, k['fw_line'], noisy_signal, x_k, True)
 
     return prj_gradient, prj_gradient_custom, fw, fw_exact_line_search, A
 
@@ -456,10 +469,7 @@ def task2(img):
     fw_exact_line_search_img = np.matmul(A, fw_exact_line_search[-1][0]).reshape((img.shape[0], img.shape[1]))
     ax[4].imshow(fw_exact_line_search_img)
 
-    obj_fun_proj = __calculate_progression_of_objective_function(A, img, prj_gradient)
-    obj_fun_proj_custom = __calculate_progression_of_objective_function(A, img, prj_gradient_custom)
-    obj_fun_fw = __calculate_progression_of_objective_function(A, img, fw)
-    obj_fun_fw_exact_line_search = __calculate_progression_of_objective_function(A, img, fw_exact_line_search)
+    obj_fun_fw, obj_fun_fw_exact_line_search, obj_fun_proj, obj_fun_proj_custom = __calculate_progression_of_objective_functions(A, fw, fw_exact_line_search, img, prj_gradient, prj_gradient_custom)
 
     # Progression of objective function over iterations
     iterations = np.arange(1, k + 1)  # k=1500 iterations
@@ -475,6 +485,14 @@ def task2(img):
     return fig
 
 
+def __calculate_progression_of_objective_functions(A, fw, fw_exact_line_search, img, prj_gradient, prj_gradient_custom):
+    obj_fun_proj = __calculate_progression_of_objective_function(A, img, prj_gradient)
+    obj_fun_proj_custom = __calculate_progression_of_objective_function(A, img, prj_gradient_custom)
+    obj_fun_fw = __calculate_progression_of_objective_function(A, img, fw)
+    obj_fun_fw_exact_line_search = __calculate_progression_of_objective_function(A, img, fw_exact_line_search)
+    return obj_fun_fw, obj_fun_fw_exact_line_search, obj_fun_proj, obj_fun_proj_custom
+
+
 def __calculate_progression_of_objective_function(A, img, method_history):
     obj_function_values = []
     for hist in method_history:
@@ -487,13 +505,13 @@ def __calculate_progression_of_objective_function(A, img, method_history):
 if __name__ == "__main__":
     args = []
     with np.load('data.npz') as data:
-        # args.append(data['sig'])
+        args.append(data['sig'])
         args.append(data['yoshi'])
 
     pdf = PdfPages('figures.pdf')
 
     # for task, arg in zip([task1, task2], args):
-    for task, arg in zip([task2], args):
+    for task, arg in zip([task1], args):
         retval = task(arg)
         fig = retval[0] if type(retval) is tuple else retval
         pdf.savefig(fig)
